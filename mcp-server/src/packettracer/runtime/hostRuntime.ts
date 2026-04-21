@@ -714,26 +714,47 @@ async function listPacketTracerProcessesOnWindows(
   const parsed = JSON.parse(stdout) as WindowsProcessRecord | WindowsProcessRecord[] | null;
   const records = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
 
-  const matches: PacketTracerRuntimeProcessMatch[] = [];
-  for (const record of records) {
-    const executablePath = normalizeWindowsPathForComparison(record.ExecutablePath);
-    if (!executablePath || executablePath !== normalizedLauncherPath) {
-      continue;
-    }
+  const exactMatches: PacketTracerRuntimeProcessMatch[] = [];
+  const ambiguousMatches: PacketTracerRuntimeProcessMatch[] = [];
+  let mismatchedPathDetected = false;
 
+  for (const record of records) {
     const pid = Number(record.ProcessId);
     if (!Number.isFinite(pid)) {
       continue;
     }
 
-    matches.push({
+    const executablePath = normalizeWindowsPathForComparison(record.ExecutablePath);
+    if (!executablePath) {
+      ambiguousMatches.push({
+        pid,
+        args: processImage,
+        kind: "launcher",
+      });
+      continue;
+    }
+
+    if (executablePath !== normalizedLauncherPath) {
+      mismatchedPathDetected = true;
+      continue;
+    }
+
+    exactMatches.push({
       pid,
       args: record.ExecutablePath ?? launcherPath,
       kind: "appimage",
     });
   }
 
-  return matches;
+  if (exactMatches.length > 0) {
+    return exactMatches;
+  }
+
+  if (!mismatchedPathDetected) {
+    return ambiguousMatches;
+  }
+
+  return [];
 }
 
 function readProcessImageName(path: string): string | null {
