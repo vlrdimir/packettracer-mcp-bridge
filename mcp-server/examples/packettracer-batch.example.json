@@ -1,0 +1,76 @@
+{
+  "steps": [
+    {
+      "label": "handshake",
+      "experimental": {
+        "operation": "handshake",
+        "allowNonReadOnly": false
+      }
+    },
+    {
+      "label": "add router",
+      "experimental": {
+        "operation": "add_device",
+        "deviceType": "ROUTER",
+        "model": "1841",
+        "x": 100,
+        "y": 100,
+        "allowNonReadOnly": true
+      }
+    },
+    {
+      "label": "add pc",
+      "experimental": {
+        "operation": "add_device",
+        "deviceType": "PC",
+        "model": "PC-PT",
+        "x": 220,
+        "y": 100,
+        "allowNonReadOnly": true
+      }
+    },
+    {
+      "label": "connect router to pc",
+      "experimental": {
+        "operation": "connect_devices",
+        "leftDeviceSelector": "Router0",
+        "leftPortSelector": "FastEthernet0/0",
+        "rightDeviceSelector": "PC0",
+        "rightPortSelector": "FastEthernet0",
+        "connectionType": "ETHERNET_STRAIGHT",
+        "allowNonReadOnly": true
+      }
+    },
+    {
+      "label": "set router ip",
+      "experimental": {
+        "operation": "set_interface_ip",
+        "deviceSelector": "Router0",
+        "portSelector": "FastEthernet0/0",
+        "ipAddress": "10.10.10.1",
+        "subnetMask": "255.255.255.0",
+        "allowNonReadOnly": true
+      }
+    },
+    {
+      "label": "show ip interface brief (multiline auto-b64)",
+      "experimental": {
+        "operation": "run_device_cli",
+        "deviceSelector": "Router0",
+        "cliMode": "user",
+        "allowNonReadOnly": true
+      },
+      "commands": [
+        "show ip interface brief",
+        "show ip route"
+      ]
+    },
+    {
+      "label": "list links",
+      "experimental": {
+        "operation": "list_links",
+        "allowNonReadOnly": false
+      }
+    }
+  ]
+}

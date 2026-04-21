@@ -1,0 +1,17 @@
+# Node / TypeScript
+node_modules/
+dist/
+
+# Java / PT-side build output
+build/
+*.class
+*.jar
+
+# Local packaging artifacts
+*.pta
+*.log
+
+# OS / tool caches
+.DS_Store
+__pycache__/
+.ruff_cache/
