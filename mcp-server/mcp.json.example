@@ -1,0 +1,18 @@
+{
+  "servers": {
+    "packettracer": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "<ABSOLUTE_PATH_TO_REPO>/mcp-server/dist/index.js"
+      ],
+      "env": {
+        "PACKET_TRACER_EXAPP_BRIDGE_COMMAND": "node",
+        "PACKET_TRACER_EXAPP_BRIDGE_ARGS_JSON": "[\"<ABSOLUTE_PATH_TO_REPO>/mcp-server/dist/packettracer-exapp-bridge.js\"]",
+        "PACKET_TRACER_EXAPP_BRIDGE_CWD": "<ABSOLUTE_PATH_TO_REPO>/mcp-server",
+        "PACKET_TRACER_LOCAL_EXPERIMENTAL_BRIDGE_PORT": "39150",
+        "PACKET_TRACER_LAUNCHER_PATH": "<ABSOLUTE_PATH_TO_PACKETTRACER_EXE>"
+      }
+    }
+  }
+}

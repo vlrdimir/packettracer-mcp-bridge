@@ -18,23 +18,35 @@ If you previously called it `.pts`, note that the artifact produced here is **`p
 ## Files you will use
 
 - `build.sh` — compiles the Java sources and prepares `build/package/`
+- `build.ps1` — PowerShell build equivalent for preparing `build/package/` on Windows
 - `pt-exapp.py` — executable launched by Packet Tracer from the packaged app
 - `PT_APP_META.xml` — Packet Tracer app metadata
 - `build/package/pt-exapp.jar` — built Java app JAR
 - `build/package/pt-exapp.pta` — final installable ExApp package after packaging
+
+PT 8.2-specific release artifacts also exist:
+
+- `PT_APP_META_82.xml`
+- `release/pt82/`
+
+Those PT 8.2 files are release/compatibility assets for manual or alternate packaging. They are **not** the default `.pta` build input used by `build.sh` / `build.ps1`.
 
 ## Prerequisites
 
 You need:
 
 - Packet Tracer 9.0.0 installed
-- a Java runtime available as `java`
+- a Java Development Kit (JDK) that provides `java`, `javac`, and `jar`
 - the Packet Tracer Java framework JAR, provided by one of these paths:
   - `PACKET_TRACER_JAVA_FRAMEWORK_JAR=/absolute/path/to/PacketTracerJavaFramework.jar`
   - `packettracer-mcp-bridge/apps/lib/PacketTracerJavaFramework.jar`
-  - an active Packet Tracer AppImage mount under `/tmp/.mount_*/opt/pt/help/default/ipc/`
+  - an active Packet Tracer AppImage mount under `/tmp/.mount_*/opt/pt/help/default/ipc/` (Linux fallback)
 
 `pt-exapp.py` resolves the framework JAR using that order and then launches the main class with `java -cp ... packettracer.exapp.PacketTracerPtExApp`.
+
+For Windows builds, the simplest setup is usually `PACKET_TRACER_JAVA_FRAMEWORK_JAR` or a staged `apps/lib/PacketTracerJavaFramework.jar`; the AppImage mount fallback is Linux-specific.
+
+`pt-exapp.py` also accepts `PACKET_TRACER_PTEXAPP_JAR` when you want to point the launcher at a specific `pt-exapp.jar` instead of relying on the default packaged locations.
 
 ## Build the ExApp
 
@@ -42,6 +54,12 @@ Run from `packettracer-mcp-bridge/apps/`:
 
 ```bash
 ./build.sh
+```
+
+Windows PowerShell equivalent:
+
+```powershell
+.\build.ps1
 ```
 
 If the framework JAR is not already staged under `apps/lib/`, use the explicit env var form:
@@ -63,6 +81,15 @@ After `./build.sh`, package the ExApp from `packettracer-mcp-bridge/apps/build/p
 cd build/package
 python3 ../../../tools/packettracer-meta.py pt-exapp.pta PT_APP_META.xml -i pt-exapp.py
 ```
+
+PowerShell equivalent:
+
+```powershell
+Set-Location build/package
+python ..\..\..\tools\packettracer-meta.py pt-exapp.pta PT_APP_META.xml -i pt-exapp.py
+```
+
+`packettracer-meta.py` can auto-discover Packet Tracer's `meta` / `meta.exe`, or you can override it explicitly with `--meta-path` / `PACKETTRACER_META`. On Linux you can also override the AppImage source with `--appimage` / `PACKETTRACER_APPIMAGE`.
 
 That produces:
 
@@ -143,6 +170,15 @@ export PACKET_TRACER_EXAPP_BRIDGE_ARGS_JSON='[]'
 export PACKET_TRACER_EXAPP_BRIDGE_CWD="$PWD"
 ```
 
+PowerShell equivalent:
+
+```powershell
+$env:PACKET_TRACER_LOCAL_EXPERIMENTAL_BRIDGE_PORT = '39150'
+$env:PACKET_TRACER_EXAPP_BRIDGE_COMMAND = "$PWD/dist/packettracer-exapp-bridge.js"
+$env:PACKET_TRACER_EXAPP_BRIDGE_ARGS_JSON = '[]'
+$env:PACKET_TRACER_EXAPP_BRIDGE_CWD = "$PWD"
+```
+
 Replace `39150` with the exact port shown by the Packet Tracer log.
 
 That makes the MCP side prefer the specific ExApp listener instead of scanning the whole range first.
@@ -164,4 +200,5 @@ See the host-side contract and server run steps in:
 
 - The package metadata currently points Packet Tracer at `pt-exapp.py` via `PT_APP_META.xml`.
 - The current metadata uses `<LOADING>ON_DEMAND</LOADING>`, so the app must be launched from Packet Tracer before the MCP side can talk to it.
+- `PT_APP_META_82.xml` and `release/pt82/` are PT 8.2 release/compatibility assets. Use them only when you intentionally need a PT 8.2-specific manual packaging path; they are not part of the default `build/package/pt-exapp.pta` workflow.
 - Keep serial-capable router examples aligned with the catalog-backed `HWIC-2T` module shape when docs or samples refer to serial links.

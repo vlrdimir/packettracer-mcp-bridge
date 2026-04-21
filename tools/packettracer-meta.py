@@ -13,6 +13,13 @@ from pathlib import Path
 from typing import IO, cast
 
 DEFAULT_APPIMAGE_PATH = Path("/usr/lib/packettracer/packettracer.AppImage")
+WINDOWS_META_CANDIDATES = (
+    Path(r"C:\Program Files\Cisco Packet Tracer\bin\meta.exe"),
+    Path(r"C:\Program Files\Cisco Packet Tracer 9.0\bin\meta.exe"),
+    Path(r"C:\Program Files\Cisco Packet Tracer 8.2.2\bin\meta.exe"),
+    Path(r"C:\Program Files\Cisco Packet Tracer 8.2.0\bin\meta.exe"),
+    Path(r"C:\Program Files (x86)\Cisco Packet Tracer\bin\meta.exe"),
+)
 
 
 @dataclass(frozen=True)
@@ -59,6 +66,9 @@ def parse_args() -> tuple[CliArgs, list[str]]:
 
 def running_mount_candidates() -> Iterator[Path]:
     proc_root = Path("/proc")
+    if not proc_root.is_dir():
+        return
+
     for proc_entry in proc_root.iterdir():
         if not proc_entry.name.isdigit():
             continue
@@ -111,6 +121,45 @@ def resolve_explicit_meta(meta_path_raw: str) -> MetaResolution | None:
     return MetaResolution(
         meta_path=meta_path, source="explicit --meta-path / PACKETTRACER_META"
     )
+
+
+def windows_meta_candidates() -> Iterator[Path]:
+    program_files = os.environ.get("ProgramFiles", "").strip()
+    if program_files:
+        yield Path(program_files) / "Cisco Packet Tracer" / "bin" / "meta.exe"
+        yield Path(program_files) / "Cisco Packet Tracer 9.0" / "bin" / "meta.exe"
+        yield Path(program_files) / "Cisco Packet Tracer 8.2.2" / "bin" / "meta.exe"
+        yield Path(program_files) / "Cisco Packet Tracer 8.2.0" / "bin" / "meta.exe"
+
+    program_files_x86 = os.environ.get("ProgramFiles(x86)", "").strip()
+    if program_files_x86:
+        yield Path(program_files_x86) / "Cisco Packet Tracer" / "bin" / "meta.exe"
+        yield Path(program_files_x86) / "Cisco Packet Tracer 9.0" / "bin" / "meta.exe"
+        yield Path(program_files_x86) / "Cisco Packet Tracer 8.2.2" / "bin" / "meta.exe"
+        yield Path(program_files_x86) / "Cisco Packet Tracer 8.2.0" / "bin" / "meta.exe"
+
+    for candidate in WINDOWS_META_CANDIDATES:
+        yield candidate
+
+
+def resolve_meta_from_windows_installation() -> MetaResolution | None:
+    if os.name != "nt":
+        return None
+
+    seen: set[Path] = set()
+    for candidate in windows_meta_candidates():
+        resolved = candidate.expanduser().resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+
+        if resolved.is_file():
+            return MetaResolution(
+                meta_path=resolved,
+                source=f"Windows Packet Tracer install at {resolved.parent}",
+            )
+
+    return None
 
 
 def run_meta(meta_path: Path, forwarded_args: list[str]) -> int:
@@ -179,6 +228,15 @@ def main() -> int:
     running_meta = resolve_meta_from_running_mount()
     if running_meta is not None:
         return run_meta(running_meta.meta_path, forwarded_args)
+
+    windows_meta = resolve_meta_from_windows_installation()
+    if windows_meta is not None:
+        return run_meta(windows_meta.meta_path, forwarded_args)
+
+    if os.name == "nt":
+        raise FileNotFoundError(
+            "Packet Tracer meta.exe not found. Set --meta-path or PACKETTRACER_META to your meta.exe location."
+        )
 
     appimage_path = Path(namespace.appimage).expanduser().resolve()
     return run_with_temporary_mount(appimage_path, forwarded_args)
