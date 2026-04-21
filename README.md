@@ -9,10 +9,12 @@ Together they let MCP clients launch Packet Tracer, inspect bridge readiness, an
 
 ## Demo
 
-Demo video:
+Demo preview (click to open full video):
 
 <div align="center">
-  <video src="https://cdn.dontdemoit.com/export-1776745274354.mp4" controls style="width: 100%; max-width: 960px; height: auto;"></video>
+  <a href="https://cdn.dontdemoit.com/export-1776745274354.mp4">
+    <img src="./assets/demo-full.gif" alt="Packet Tracer MCP Bridge demo" style="width: 100%; max-width: 960px; height: auto;" />
+  </a>
 </div>
 
 This is the best place to put the video because it is the landing page for the whole bridge workspace.
