@@ -1,4 +1,6 @@
 import { execFile, spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { access, constants } from "node:fs/promises";
 
 const WINDOWS_PACKET_TRACER_LAUNCHER_CANDIDATES = [
@@ -554,8 +556,21 @@ function resolveWindowsLauncherPath(env: NodeJS.ProcessEnv): string {
       : []),
   ];
 
-  const candidate = [...envDerivedCandidates, ...WINDOWS_PACKET_TRACER_LAUNCHER_CANDIDATES][0];
+  const candidate = readFirstExistingWindowsLauncherPath([
+    ...envDerivedCandidates,
+    ...WINDOWS_PACKET_TRACER_LAUNCHER_CANDIDATES,
+  ]);
   return candidate ?? WINDOWS_PACKET_TRACER_LAUNCHER_CANDIDATES[0];
+}
+
+function readFirstExistingWindowsLauncherPath(candidates: readonly string[]): string | undefined {
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return undefined;
 }
 
 function readOptionalEnvPath(env: NodeJS.ProcessEnv, name: string): string | undefined {
@@ -675,40 +690,45 @@ async function listPacketTracerProcessesOnUnixLike(
 async function listPacketTracerProcessesOnWindows(
   launcherPath: string
 ): Promise<PacketTracerRuntimeProcessMatch[]> {
+  const normalizedLauncherPath = normalizeWindowsPathForComparison(launcherPath);
   const processImage = readProcessImageName(launcherPath) ?? "PacketTracer.exe";
-  const result = await runExecFile("tasklist", [
-    "/fo",
-    "csv",
-    "/nh",
-    "/fi",
-    `IMAGENAME eq ${processImage}`,
-  ]);
+  const result = await runExecFile(
+    "powershell.exe",
+    [
+      "-NoProfile",
+      "-Command",
+      "$processImage = [string]$args[0]; $escapedProcessImage = $processImage.Replace(\"'\", \"''\"); Get-CimInstance Win32_Process -Filter (\"Name = '\" + $escapedProcessImage + \"'\") | Select-Object ProcessId, ExecutablePath | ConvertTo-Json -Compress",
+      processImage,
+    ]
+  );
+
+  if (result.exitCode !== 0) {
+    throw new Error(result.stderr.trim() || `PowerShell process query failed with exit code ${result.exitCode}`);
+  }
+
+  const stdout = result.stdout.trim();
+  if (stdout.length === 0) {
+    return [];
+  }
+
+  const parsed = JSON.parse(stdout) as WindowsProcessRecord | WindowsProcessRecord[] | null;
+  const records = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
 
   const matches: PacketTracerRuntimeProcessMatch[] = [];
-  for (const line of result.stdout.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (trimmed.length === 0 || trimmed.startsWith("INFO:")) {
+  for (const record of records) {
+    const executablePath = normalizeWindowsPathForComparison(record.ExecutablePath);
+    if (!executablePath || executablePath !== normalizedLauncherPath) {
       continue;
     }
 
-    const match = trimmed.match(/^"([^"]+)","([^"]+)"/);
-    if (!match) {
-      continue;
-    }
-
-    const imageName = match[1];
-    if (imageName.toLowerCase() !== processImage.toLowerCase()) {
-      continue;
-    }
-
-    const pid = Number.parseInt(match[2].replace(/,/g, ""), 10);
+    const pid = Number(record.ProcessId);
     if (!Number.isFinite(pid)) {
       continue;
     }
 
     matches.push({
       pid,
-      args: imageName,
+      args: record.ExecutablePath ?? launcherPath,
       kind: "appimage",
     });
   }
@@ -725,6 +745,20 @@ function readProcessImageName(path: string): string | null {
   const parts = trimmedPath.split(/[\\/]/);
   const imageName = parts[parts.length - 1]?.trim();
   return imageName && imageName.length > 0 ? imageName : null;
+}
+
+interface WindowsProcessRecord {
+  ProcessId?: number | string;
+  ExecutablePath?: string;
+}
+
+function normalizeWindowsPathForComparison(candidatePath: string | undefined): string | null {
+  const trimmedPath = candidatePath?.trim();
+  if (!trimmedPath) {
+    return null;
+  }
+
+  return path.win32.normalize(trimmedPath).toLowerCase();
 }
 
 function classifyProcessProbe(
