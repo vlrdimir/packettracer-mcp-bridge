@@ -110,7 +110,7 @@ Optional host runtime overrides (useful on Windows or custom installs):
 - `PACKET_TRACER_RESET_HELPER_PATH`
 - `PACKET_TRACER_APPIMAGE_PATH`
 
-On Windows, `hostRuntime` will also try common `PacketTracer.exe` install locations automatically before falling back to `PACKET_TRACER_LAUNCHER_PATH` overrides.
+On Windows, `hostRuntime` will use `PACKET_TRACER_LAUNCHER_PATH` when provided; otherwise it tries common `PacketTracer.exe` install locations automatically.
 
 ## Runtime requirements
 
