@@ -12,10 +12,8 @@ Together they let MCP clients launch Packet Tracer, inspect bridge readiness, an
 Demo video:
 
 <div align="center">
-  <video src="assets/export-1776745274354.mp4" controls style="width: 100%; max-width: 960px; height: auto;"></video>
+  <video src="https://cdn.dontdemoit.com/export-1776745274354.mp4" controls style="width: 100%; max-width: 960px; height: auto;"></video>
 </div>
-
-Direct file link: [assets/export-1776745274354.mp4](assets/export-1776745274354.mp4)
 
 This is the best place to put the video because it is the landing page for the whole bridge workspace.
 
@@ -25,7 +23,7 @@ Current end-to-end testing for this workspace has only been done on **Arch Linux
 
 The local Packet Tracer base install used during testing follows this project and article lineage:
 
-- reference article: `https://fr0stb1rd.gitlab.io/posts/cisco-packet-tracer-9-0-0-installation-on-any-linux/`
+- reference article: [Cisco Packet Tracer 9.0.0 Installation on All Linux Distributions](https://fr0stb1rd.gitlab.io/posts/cisco-packet-tracer-9-0-0-installation-on-any-linux/)
 
 In practice, this workspace currently assumes a Linux-style Packet Tracer install because the host runtime and packaging helpers are documented against paths such as:
 
