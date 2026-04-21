@@ -110,6 +110,8 @@ Optional host runtime overrides (useful on Windows or custom installs):
 - `PACKET_TRACER_RESET_HELPER_PATH`
 - `PACKET_TRACER_APPIMAGE_PATH`
 
+On Windows, `hostRuntime` will also try common `PacketTracer.exe` install locations automatically before falling back to `PACKET_TRACER_LAUNCHER_PATH` overrides.
+
 ## Runtime requirements
 
 The host runtime adapter targets the repo-approved Packet Tracer wrapper paths:
@@ -168,7 +170,47 @@ npm start
 
 Replace the port value with the one printed by the PT-side ExApp log.
 
-## Windows MVP smoke test
+## Example `mcp.json` configuration
+
+If your MCP client expects a Cursor-style or IDE-agent JSON server config, start from `packettracer-mcp-bridge/mcp-server/mcp.json.example`.
+
+Base example:
+
+```json
+{
+  "servers": {
+    "packettracer": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "<ABSOLUTE_PATH_TO_REPO>/mcp-server/dist/index.js"
+      ],
+      "env": {
+        "PACKET_TRACER_EXAPP_BRIDGE_COMMAND": "node",
+        "PACKET_TRACER_EXAPP_BRIDGE_ARGS_JSON": "[\"<ABSOLUTE_PATH_TO_REPO>/mcp-server/dist/packettracer-exapp-bridge.js\"]",
+        "PACKET_TRACER_EXAPP_BRIDGE_CWD": "<ABSOLUTE_PATH_TO_REPO>/mcp-server",
+        "PACKET_TRACER_LOCAL_EXPERIMENTAL_BRIDGE_PORT": "39150",
+        "PACKET_TRACER_LAUNCHER_PATH": "<ABSOLUTE_PATH_TO_PACKETTRACER_EXE>"
+      }
+    }
+  }
+}
+```
+
+Replace:
+
+- `<ABSOLUTE_PATH_TO_REPO>` with your local clone path
+- `39150` with the exact ExApp bridge port printed by Packet Tracer
+- `<ABSOLUTE_PATH_TO_PACKETTRACER_EXE>` with your `PacketTracer.exe` path on Windows
+
+The example uses `command: "node"` plus the built `dist/index.js` and `dist/packettracer-exapp-bridge.js` files, so run `npm install` and `npm run build` in `mcp-server/` first.
+
+OS-specific note:
+
+- On **Windows**, keep `PACKET_TRACER_LAUNCHER_PATH` and point it at `PacketTracer.exe` if auto-discovery is not enough.
+- On **Linux**, you can remove `PACKET_TRACER_LAUNCHER_PATH` entirely and optionally add `PACKET_TRACER_APPIMAGE_PATH` if you want to override the default AppImage location.
+
+## Windows smoke test
 
 After `npm install` and `npm run build`, you can run a focused Windows smoke check for:
 
@@ -182,6 +224,8 @@ npm run smoke:windows
 ```
 
 The script performs a preflight first (important env + path checks), then fails fast with step-by-step diagnostics when readiness is not `ready`.
+
+That preflight validates the bridge command/cwd/port setup, checks that `PACKET_TRACER_EXAPP_BRIDGE_ARGS_JSON` is valid JSON when present, and expects the ExApp bridge port to stay in the `39150-39159` range.
 
 For machine-readable output (CI/log parser), use JSON mode:
 

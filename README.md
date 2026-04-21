@@ -21,26 +21,28 @@ This is the best place to put the video because it is the landing page for the w
 
 ## Tested platform
 
-Current end-to-end testing for this workspace has been done on **Arch Linux**. Windows host-runtime support is now available as an MVP path, but still needs broader validation.
+Current end-to-end testing for this workspace has been done on **Arch Linux** and **Windows**.
 
 The local Packet Tracer base install used during testing follows this project and article lineage:
 
 - reference article: [Cisco Packet Tracer 9.0.0 Installation on All Linux Distributions](https://fr0stb1rd.gitlab.io/posts/cisco-packet-tracer-9-0-0-installation-on-any-linux/)
 
-In practice, this workspace currently assumes a Linux-style Packet Tracer install because the host runtime and packaging helpers are documented against paths such as:
+This workspace supports both the Linux wrapper/AppImage path and the Windows launcher/meta.exe path.
+
+On Linux, the documented defaults still point at paths such as:
 
 - `/usr/bin/packettracer`
-- `/usr/bin/packettracer-reset-login-state`
 - `/usr/lib/packettracer/packettracer.AppImage`
 
 Other Linux setups may work, but they should be treated as **not yet validated** unless you verify the same runtime paths or adapt the local wrappers.
 
-Windows now has a documented MVP runtime path for `mcp-server` (launcher-based flow plus PowerShell environment setup), but ExApp packaging/build docs remain Linux-first.
+On Windows, `mcp-server` uses the launcher-based runtime path, and the PT-side packaging flow can use PowerShell plus Windows `meta.exe` discovery through `tools/packettracer-meta.py`.
 
 ## Layout
 
 - `packettracer-mcp-bridge/mcp-server/` - stdio MCP server, MCP contract, and ExApp bridge launcher
 - `packettracer-mcp-bridge/apps/` - PT-side Java ExApp, `.pta` packaging flow, and Packet Tracer-side bridge listener
+- `packettracer-mcp-bridge/apps/release/pt82/` - PT 8.2 release/compatibility packaging assets for manual or alternate `.pta` packaging, not the default build flow
 - `packettracer-mcp-bridge/tools/packettracer-meta.py` - shell-safe wrapper around Cisco Packet Tracer's `meta` packager
 
 ## Quick start
@@ -109,6 +111,10 @@ npm start
 
 Replace `39150` with the exact port shown by the Packet Tracer log.
 
+If your MCP client uses a Cursor-style or IDE-agent `mcp.json` config, start from `packettracer-mcp-bridge/mcp-server/mcp.json.example`.
+
+Then replace the sample paths, built `dist/` locations, and Packet Tracer runtime path with your local values. On Windows, keep `PACKET_TRACER_LAUNCHER_PATH`. On Linux, replace that env entry with `PACKET_TRACER_APPIMAGE_PATH` if you want to pin the AppImage path explicitly.
+
 ### 4. Confirm readiness from the MCP side
 
 Use `packettracer_status` first. It is the safest first check because it reports:
@@ -127,17 +133,28 @@ npm run smoke:windows
 
 This repo does not vendor Cisco Packet Tracer binaries. The main external prerequisites are:
 
-- `/usr/lib/packettracer/packettracer.AppImage` or a running Packet Tracer AppImage mount
+- a Java Development Kit (JDK) that provides `java`, `javac`, and `jar`
 - a Packet Tracer Java framework JAR, provided via:
   - `PACKET_TRACER_JAVA_FRAMEWORK_JAR`, or
   - `packettracer-mcp-bridge/apps/lib/PacketTracerJavaFramework.jar`, or
-- an active Packet Tracer mount under `/tmp/.mount_*/opt/pt/help/default/ipc/`
+- an active Packet Tracer mount under `/tmp/.mount_*/opt/pt/help/default/ipc/` (Linux fallback)
+
+Linux runtime defaults expect:
+
+- `/usr/lib/packettracer/packettracer.AppImage` or a running Packet Tracer AppImage mount
+
+Windows runtime defaults expect:
+
+- a valid `PacketTracer.exe` install, either auto-discovered or provided via `PACKET_TRACER_LAUNCHER_PATH`
+
+For Windows packaging, `tools/packettracer-meta.py` can auto-discover `meta.exe` from common Packet Tracer installs, or you can point it directly with `--meta-path` / `PACKETTRACER_META`.
 
 If you are setting this up outside Arch Linux, read the tested-platform note above first and expect to adapt the runtime path assumptions.
 
 ## Notes
 
 - `packettracer-mcp-bridge/apps/PT_APP_META.xml` intentionally keeps its current `<ID>` / `<KEY>` values for compatibility until full `.pta` install/load validation is complete.
+- `packettracer-mcp-bridge/apps/release/pt82/` and `packettracer-mcp-bridge/apps/PT_APP_META_82.xml` are PT 8.2 release artifacts for manual or alternate packaging; the default documented `.pta` flow still uses the root `apps/PT_APP_META.xml` and `apps/pt-exapp.py`.
 - `packettracer-mcp-bridge/mcp-server/` and `packettracer-mcp-bridge/apps/` can be built independently, but the repo is organized as one bridge workspace.
 - `packettracer-mcp-bridge/apps/README.md` should stay focused on install/package/launch inside Packet Tracer.
 - `packettracer-mcp-bridge/mcp-server/README.md` should stay focused on the MCP contract and server runtime.
