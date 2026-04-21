@@ -1188,16 +1188,16 @@ function mapStatusToHandshakeReadiness(
     return "degraded";
   }
 
+  if (observation.state === "connected") {
+    return "ready";
+  }
+
   if (!status.isInstalled || status.phase === "not-installed") {
     return "unavailable";
   }
 
   if (status.phase === "failed") {
     return "degraded";
-  }
-
-  if (observation.state === "connected") {
-    return "ready";
   }
 
   if (status.phase === "launching") {
@@ -1306,6 +1306,20 @@ function createReadStatusPayload(
 async function discoverPacketTracerExAppSession(
   status: PacketTracerRuntimeStatusResult
 ): Promise<ExAppSessionObservation> {
+  const localExperimentalBridge = await discoverLocalExperimentalBridge();
+  if (localExperimentalBridge !== null) {
+    return {
+      method: "local-experimental-bridge-range",
+      state: "connected",
+      listeners: [localExperimentalBridge],
+      selectedListener: localExperimentalBridge,
+      isReachable: true,
+      sessionId: `local-experimental-bridge:${localExperimentalBridge.address}:${localExperimentalBridge.port}`,
+      instanceId: localExperimentalBridge.instanceId ?? "",
+      reason: undefined,
+    };
+  }
+
   if (!status.isInstalled || status.phase === "not-installed") {
     return {
       method: "packet-tracer-ipc-port-range",
@@ -1332,21 +1346,20 @@ async function discoverPacketTracerExAppSession(
     };
   }
 
-  try {
-    const localExperimentalBridge = await discoverLocalExperimentalBridge();
-    if (localExperimentalBridge !== null) {
-      return {
-        method: "local-experimental-bridge-range",
-        state: "connected",
-        listeners: [localExperimentalBridge],
-        selectedListener: localExperimentalBridge,
-        isReachable: true,
-        sessionId: `local-experimental-bridge:${localExperimentalBridge.address}:${localExperimentalBridge.port}`,
-        instanceId: localExperimentalBridge.instanceId ?? "",
-        reason: undefined,
-      };
-    }
+  if (process.platform === "win32") {
+    return {
+      method: "packet-tracer-ipc-port-range",
+      state: "disconnected",
+      listeners: [],
+      selectedListener: null,
+      isReachable: false,
+      sessionId: "",
+      instanceId: "",
+      reason: "ipc-owner-observation-unsupported-on-win32",
+    };
+  }
 
+  try {
     const listeners = await discoverPacketTracerOwnedIpcListeners(status.processes.map((process) => process.pid));
     const selectedListener = listeners[0] ?? null;
 

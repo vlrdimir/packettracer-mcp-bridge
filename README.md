@@ -21,7 +21,7 @@ This is the best place to put the video because it is the landing page for the w
 
 ## Tested platform
 
-Current end-to-end testing for this workspace has only been done on **Arch Linux**.
+Current end-to-end testing for this workspace has been done on **Arch Linux**. Windows host-runtime support is now available as an MVP path, but still needs broader validation.
 
 The local Packet Tracer base install used during testing follows this project and article lineage:
 
@@ -35,7 +35,7 @@ In practice, this workspace currently assumes a Linux-style Packet Tracer instal
 
 Other Linux setups may work, but they should be treated as **not yet validated** unless you verify the same runtime paths or adapt the local wrappers.
 
-Windows setup is **not documented here yet**. The current workspace uses Linux-oriented AppImage assumptions, shell commands, and wrapper paths, so adding Windows instructions right now would overstate support we have not tested.
+Windows now has a documented MVP runtime path for `mcp-server` (launcher-based flow plus PowerShell environment setup), but ExApp packaging/build docs remain Linux-first.
 
 ## Layout
 
@@ -53,6 +53,14 @@ From `packettracer-mcp-bridge/apps/`:
 ./build.sh
 cd build/package
 python3 ../../../tools/packettracer-meta.py pt-exapp.pta PT_APP_META.xml -i pt-exapp.py
+```
+
+PowerShell build equivalent:
+
+```powershell
+.\build.ps1
+Set-Location build/package
+python ..\..\..\tools\packettracer-meta.py pt-exapp.pta PT_APP_META.xml -i pt-exapp.py
 ```
 
 This produces the Packet Tracer app package:
@@ -87,6 +95,18 @@ export PACKET_TRACER_LOCAL_EXPERIMENTAL_BRIDGE_PORT=39150
 npm start
 ```
 
+PowerShell equivalent:
+
+```powershell
+npm install
+npm run build
+$env:PACKET_TRACER_EXAPP_BRIDGE_COMMAND = "$PWD/dist/packettracer-exapp-bridge.js"
+$env:PACKET_TRACER_EXAPP_BRIDGE_ARGS_JSON = '[]'
+$env:PACKET_TRACER_EXAPP_BRIDGE_CWD = "$PWD"
+$env:PACKET_TRACER_LOCAL_EXPERIMENTAL_BRIDGE_PORT = '39150'
+npm start
+```
+
 Replace `39150` with the exact port shown by the Packet Tracer log.
 
 ### 4. Confirm readiness from the MCP side
@@ -96,6 +116,12 @@ Use `packettracer_status` first. It is the safest first check because it reports
 - host runtime state
 - ExApp bridge readiness
 - bridge discovery details
+
+On Windows hosts, you can also run the focused smoke check from `packettracer-mcp-bridge/mcp-server/`:
+
+```powershell
+npm run smoke:windows
+```
 
 ## Runtime prerequisites
 

@@ -44,6 +44,12 @@ Run from `packettracer-mcp-bridge/apps/`:
 ./build.sh
 ```
 
+Windows PowerShell equivalent:
+
+```powershell
+.\build.ps1
+```
+
 If the framework JAR is not already staged under `apps/lib/`, use the explicit env var form:
 
 ```bash
@@ -141,6 +147,15 @@ export PACKET_TRACER_LOCAL_EXPERIMENTAL_BRIDGE_PORT=39150
 export PACKET_TRACER_EXAPP_BRIDGE_COMMAND="$PWD/dist/packettracer-exapp-bridge.js"
 export PACKET_TRACER_EXAPP_BRIDGE_ARGS_JSON='[]'
 export PACKET_TRACER_EXAPP_BRIDGE_CWD="$PWD"
+```
+
+PowerShell equivalent:
+
+```powershell
+$env:PACKET_TRACER_LOCAL_EXPERIMENTAL_BRIDGE_PORT = '39150'
+$env:PACKET_TRACER_EXAPP_BRIDGE_COMMAND = "$PWD/dist/packettracer-exapp-bridge.js"
+$env:PACKET_TRACER_EXAPP_BRIDGE_ARGS_JSON = '[]'
+$env:PACKET_TRACER_EXAPP_BRIDGE_CWD = "$PWD"
 ```
 
 Replace `39150` with the exact port shown by the Packet Tracer log.

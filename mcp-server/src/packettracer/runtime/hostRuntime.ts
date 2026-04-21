@@ -1,10 +1,24 @@
 import { execFile, spawn } from "node:child_process";
 import { access, constants } from "node:fs/promises";
 
+const WINDOWS_PACKET_TRACER_LAUNCHER_CANDIDATES = [
+  "C:\\Program Files\\Cisco Packet Tracer\\bin\\PacketTracer.exe",
+  "C:\\Program Files\\Cisco Packet Tracer 9.0\\bin\\PacketTracer.exe",
+  "C:\\Program Files\\Cisco Packet Tracer 8.2.2\\bin\\PacketTracer.exe",
+  "C:\\Program Files\\Cisco Packet Tracer 8.2.0\\bin\\PacketTracer.exe",
+  "C:\\Program Files (x86)\\Cisco Packet Tracer\\bin\\PacketTracer.exe",
+] as const;
+
 export const DEFAULT_PACKET_TRACER_PATHS = {
   launcherPath: "/usr/bin/packettracer",
   resetHelperPath: "/usr/bin/packettracer-reset-login-state",
   appImagePath: "/usr/lib/packettracer/packettracer.AppImage",
+} as const;
+
+export const PACKET_TRACER_RUNTIME_PATH_ENV = {
+  launcherPath: "PACKET_TRACER_LAUNCHER_PATH",
+  resetHelperPath: "PACKET_TRACER_RESET_HELPER_PATH",
+  appImagePath: "PACKET_TRACER_APPIMAGE_PATH",
 } as const;
 
 const DEFAULT_READINESS_TIMEOUT_MS = 5_000;
@@ -36,6 +50,7 @@ export interface PacketTracerRuntimeOptions {
   launcherPath?: string;
   resetHelperPath?: string;
   appImagePath?: string;
+  platform?: NodeJS.Platform;
   readinessTimeoutMs?: number;
   readinessPollIntervalMs?: number;
   cwd?: string;
@@ -127,15 +142,29 @@ export function createPacketTracerHostRuntime(
   options: PacketTracerRuntimeOptions = {},
   dependencies: Partial<PacketTracerRuntimeDependencies> = {}
 ): PacketTracerHostRuntime {
+  const runtimePlatform = options.platform ?? process.platform;
+  const runtimeEnv = options.env ?? process.env;
+  const defaultPaths = resolveDefaultPacketTracerPaths(runtimePlatform, runtimeEnv);
+
   const resolvedOptions = {
-    launcherPath: options.launcherPath ?? DEFAULT_PACKET_TRACER_PATHS.launcherPath,
-    resetHelperPath: options.resetHelperPath ?? DEFAULT_PACKET_TRACER_PATHS.resetHelperPath,
-    appImagePath: options.appImagePath ?? DEFAULT_PACKET_TRACER_PATHS.appImagePath,
+    launcherPath:
+      options.launcherPath ??
+      readOptionalEnvPath(runtimeEnv, PACKET_TRACER_RUNTIME_PATH_ENV.launcherPath) ??
+      defaultPaths.launcherPath,
+    resetHelperPath:
+      options.resetHelperPath ??
+      readOptionalEnvPath(runtimeEnv, PACKET_TRACER_RUNTIME_PATH_ENV.resetHelperPath) ??
+      defaultPaths.resetHelperPath,
+    appImagePath:
+      options.appImagePath ??
+      readOptionalEnvPath(runtimeEnv, PACKET_TRACER_RUNTIME_PATH_ENV.appImagePath) ??
+      defaultPaths.appImagePath,
+    platform: runtimePlatform,
     readinessTimeoutMs: options.readinessTimeoutMs ?? DEFAULT_READINESS_TIMEOUT_MS,
     readinessPollIntervalMs:
       options.readinessPollIntervalMs ?? DEFAULT_READINESS_POLL_INTERVAL_MS,
     cwd: options.cwd,
-    env: options.env,
+    env: runtimeEnv,
   };
 
   const runtimeDependencies: PacketTracerRuntimeDependencies = {
@@ -152,7 +181,7 @@ export function createPacketTracerHostRuntime(
 
     async status() {
       const paths = await resolvePacketTracerPaths(resolvedOptions);
-      const configuration = assessLaunchConfiguration(paths);
+      const configuration = assessLaunchConfiguration(paths, resolvedOptions.platform);
 
       if (configuration.kind === "not-installed") {
         return {
@@ -232,7 +261,7 @@ export function createPacketTracerHostRuntime(
 
     async launch(args: string[] = []) {
       const paths = await resolvePacketTracerPaths(resolvedOptions);
-      const configuration = assessLaunchConfiguration(paths);
+      const configuration = assessLaunchConfiguration(paths, resolvedOptions.platform);
 
       if (configuration.kind === "not-installed") {
         return {
@@ -384,7 +413,7 @@ export function createPacketTracerHostRuntime(
 
     async resetLoginState() {
       const paths = await resolvePacketTracerPaths(resolvedOptions);
-      const launchConfiguration = assessLaunchConfiguration(paths);
+      const launchConfiguration = assessLaunchConfiguration(paths, resolvedOptions.platform);
 
       if (launchConfiguration.kind === "not-installed" && !paths.resetHelperAvailable) {
         return {
@@ -483,12 +512,72 @@ async function resolvePacketTracerPaths(
   };
 }
 
+function resolveDefaultPacketTracerPaths(
+  platform: NodeJS.Platform,
+  env: NodeJS.ProcessEnv
+): Required<Pick<PacketTracerRuntimeOptions, "launcherPath" | "resetHelperPath" | "appImagePath">> {
+  if (platform === "win32") {
+    return {
+      launcherPath: resolveWindowsLauncherPath(env),
+      resetHelperPath: "",
+      appImagePath: "",
+    };
+  }
+
+  return {
+    launcherPath: DEFAULT_PACKET_TRACER_PATHS.launcherPath,
+    resetHelperPath: DEFAULT_PACKET_TRACER_PATHS.resetHelperPath,
+    appImagePath: DEFAULT_PACKET_TRACER_PATHS.appImagePath,
+  };
+}
+
+function resolveWindowsLauncherPath(env: NodeJS.ProcessEnv): string {
+  const programFiles = readOptionalEnvPath(env, "ProgramFiles");
+  const programFilesX86 = readOptionalEnvPath(env, "ProgramFiles(x86)");
+
+  const envDerivedCandidates = [
+    ...(programFiles
+      ? [
+          `${programFiles}\\Cisco Packet Tracer\\bin\\PacketTracer.exe`,
+          `${programFiles}\\Cisco Packet Tracer 9.0\\bin\\PacketTracer.exe`,
+          `${programFiles}\\Cisco Packet Tracer 8.2.2\\bin\\PacketTracer.exe`,
+          `${programFiles}\\Cisco Packet Tracer 8.2.0\\bin\\PacketTracer.exe`,
+        ]
+      : []),
+    ...(programFilesX86
+      ? [
+          `${programFilesX86}\\Cisco Packet Tracer\\bin\\PacketTracer.exe`,
+          `${programFilesX86}\\Cisco Packet Tracer 9.0\\bin\\PacketTracer.exe`,
+          `${programFilesX86}\\Cisco Packet Tracer 8.2.2\\bin\\PacketTracer.exe`,
+          `${programFilesX86}\\Cisco Packet Tracer 8.2.0\\bin\\PacketTracer.exe`,
+        ]
+      : []),
+  ];
+
+  const candidate = [...envDerivedCandidates, ...WINDOWS_PACKET_TRACER_LAUNCHER_CANDIDATES][0];
+  return candidate ?? WINDOWS_PACKET_TRACER_LAUNCHER_CANDIDATES[0];
+}
+
+function readOptionalEnvPath(env: NodeJS.ProcessEnv, name: string): string | undefined {
+  const raw = env[name]?.trim();
+  return raw && raw.length > 0 ? raw : undefined;
+}
+
 function assessLaunchConfiguration(
-  paths: PacketTracerRuntimeResolvedPaths
+  paths: PacketTracerRuntimeResolvedPaths,
+  platform: NodeJS.Platform
 ):
   | { kind: "valid" }
   | { kind: "not-installed" }
   | { kind: "failed"; problem: PacketTracerRuntimeProblem } {
+  if (platform === "win32") {
+    if (!paths.launcherAvailable) {
+      return { kind: "not-installed" };
+    }
+
+    return { kind: "valid" };
+  }
+
   const launchPathCount = Number(paths.launcherAvailable) + Number(paths.appImageAvailable);
   if (launchPathCount === 0) {
     return { kind: "not-installed" };
@@ -528,6 +617,10 @@ function assessLaunchConfiguration(
 }
 
 async function isExecutable(path: string): Promise<boolean> {
+  if (path.trim().length === 0) {
+    return false;
+  }
+
   try {
     await access(path, constants.X_OK);
     return true;
@@ -537,6 +630,16 @@ async function isExecutable(path: string): Promise<boolean> {
 }
 
 async function listPacketTracerProcesses(
+  options: Required<Pick<PacketTracerRuntimeOptions, "launcherPath" | "appImagePath" | "platform">>
+): Promise<PacketTracerRuntimeProcessMatch[]> {
+  if (options.platform === "win32") {
+    return listPacketTracerProcessesOnWindows(options.launcherPath);
+  }
+
+  return listPacketTracerProcessesOnUnixLike(options);
+}
+
+async function listPacketTracerProcessesOnUnixLike(
   options: Required<Pick<PacketTracerRuntimeOptions, "launcherPath" | "appImagePath">>
 ): Promise<PacketTracerRuntimeProcessMatch[]> {
   const result = await runExecFile("ps", ["-eo", "pid=,args="]);
@@ -567,6 +670,61 @@ async function listPacketTracerProcesses(
   }
 
   return matches;
+}
+
+async function listPacketTracerProcessesOnWindows(
+  launcherPath: string
+): Promise<PacketTracerRuntimeProcessMatch[]> {
+  const processImage = readProcessImageName(launcherPath) ?? "PacketTracer.exe";
+  const result = await runExecFile("tasklist", [
+    "/fo",
+    "csv",
+    "/nh",
+    "/fi",
+    `IMAGENAME eq ${processImage}`,
+  ]);
+
+  const matches: PacketTracerRuntimeProcessMatch[] = [];
+  for (const line of result.stdout.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0 || trimmed.startsWith("INFO:")) {
+      continue;
+    }
+
+    const match = trimmed.match(/^"([^"]+)","([^"]+)"/);
+    if (!match) {
+      continue;
+    }
+
+    const imageName = match[1];
+    if (imageName.toLowerCase() !== processImage.toLowerCase()) {
+      continue;
+    }
+
+    const pid = Number.parseInt(match[2].replace(/,/g, ""), 10);
+    if (!Number.isFinite(pid)) {
+      continue;
+    }
+
+    matches.push({
+      pid,
+      args: imageName,
+      kind: "appimage",
+    });
+  }
+
+  return matches;
+}
+
+function readProcessImageName(path: string): string | null {
+  const trimmedPath = path.trim();
+  if (trimmedPath.length === 0) {
+    return null;
+  }
+
+  const parts = trimmedPath.split(/[\\/]/);
+  const imageName = parts[parts.length - 1]?.trim();
+  return imageName && imageName.length > 0 ? imageName : null;
 }
 
 function classifyProcessProbe(

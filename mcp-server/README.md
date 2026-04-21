@@ -96,6 +96,20 @@ export PACKET_TRACER_EXAPP_BRIDGE_ARGS_JSON='[]'
 export PACKET_TRACER_EXAPP_BRIDGE_CWD="$PWD"
 ```
 
+PowerShell equivalent:
+
+```powershell
+$env:PACKET_TRACER_EXAPP_BRIDGE_COMMAND = "$PWD/dist/packettracer-exapp-bridge.js"
+$env:PACKET_TRACER_EXAPP_BRIDGE_ARGS_JSON = '[]'
+$env:PACKET_TRACER_EXAPP_BRIDGE_CWD = "$PWD"
+```
+
+Optional host runtime overrides (useful on Windows or custom installs):
+
+- `PACKET_TRACER_LAUNCHER_PATH`
+- `PACKET_TRACER_RESET_HELPER_PATH`
+- `PACKET_TRACER_APPIMAGE_PATH`
+
 ## Runtime requirements
 
 The host runtime adapter targets the repo-approved Packet Tracer wrapper paths:
@@ -103,6 +117,10 @@ The host runtime adapter targets the repo-approved Packet Tracer wrapper paths:
 - `/usr/bin/packettracer`
 - `/usr/bin/packettracer-reset-login-state`
 - `/usr/lib/packettracer/packettracer.AppImage`
+
+On Linux, those paths remain the default assumptions.
+
+On Windows, runtime launch only requires a valid Packet Tracer launcher executable (for example `PacketTracer.exe`). AppImage and reset helper paths are optional there.
 
 `packettracer_launch`, `packettracer_reset`, and `packettracer_status` act on those host-side paths. `packettracer_execute` additionally requires one configured ExApp bridge target.
 
@@ -138,7 +156,38 @@ export PACKET_TRACER_LOCAL_EXPERIMENTAL_BRIDGE_PORT=39150
 npm start
 ```
 
+PowerShell equivalent:
+
+```powershell
+$env:PACKET_TRACER_EXAPP_BRIDGE_COMMAND = "$PWD/dist/packettracer-exapp-bridge.js"
+$env:PACKET_TRACER_EXAPP_BRIDGE_ARGS_JSON = '[]'
+$env:PACKET_TRACER_EXAPP_BRIDGE_CWD = "$PWD"
+$env:PACKET_TRACER_LOCAL_EXPERIMENTAL_BRIDGE_PORT = '39150'
+npm start
+```
+
 Replace the port value with the one printed by the PT-side ExApp log.
+
+## Windows MVP smoke test
+
+After `npm install` and `npm run build`, you can run a focused Windows smoke check for:
+
+1. `packettracer_status`
+2. `packettracer_execute` read-only (`experimental.operation=list_devices`)
+
+From `packettracer-mcp-bridge/mcp-server/`:
+
+```powershell
+npm run smoke:windows
+```
+
+The script performs a preflight first (important env + path checks), then fails fast with step-by-step diagnostics when readiness is not `ready`.
+
+For machine-readable output (CI/log parser), use JSON mode:
+
+```powershell
+npx tsx src/scripts/windowsMvpSmoke.ts --json
+```
 
 ## AI coding agent setup
 
