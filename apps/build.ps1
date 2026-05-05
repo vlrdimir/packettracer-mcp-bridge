@@ -9,6 +9,8 @@ $packageJar = Join-Path $packageDir "pt-exapp.jar"
 $launcherScript = Join-Path $scriptDir "pt-exapp.py"
 $packageLauncher = Join-Path $packageDir "pt-exapp.py"
 $packageMeta = Join-Path $packageDir "PT_APP_META.xml"
+$packageLibDir = Join-Path $packageDir "lib"
+$packageFrameworkJar = Join-Path $packageLibDir "PacketTracerJavaFramework.jar"
 $rootMeta = Join-Path $scriptDir "PT_APP_META.xml"
 $defaultFrameworkJar = Join-Path $scriptDir "lib\PacketTracerJavaFramework.jar"
 $mainClass = "packettracer.exapp.PacketTracerPtExApp"
@@ -54,6 +56,7 @@ if (Test-Path -LiteralPath $classesDir) {
 }
 New-Item -ItemType Directory -Path $classesDir -Force | Out-Null
 New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
+New-Item -ItemType Directory -Path $packageLibDir -Force | Out-Null
 
 foreach ($staleFile in @(
   "pt-exapp.py",
@@ -80,8 +83,10 @@ if (-not $?) {
 
 Copy-Item -LiteralPath $rootMeta -Destination $packageMeta -Force
 Copy-Item -LiteralPath $launcherScript -Destination $packageLauncher -Force
+Copy-Item -LiteralPath $frameworkJar -Destination $packageFrameworkJar -Force
 
 Write-Host "Compiled classes written to $classesDir"
 Write-Host "Packageable PT_APP_META copied to $packageMeta"
 Write-Host "Packageable application JAR written to $packageJar"
 Write-Host "Packageable launcher written to $packageLauncher"
+Write-Host "Packageable framework JAR written to $packageFrameworkJar"

@@ -11,6 +11,8 @@ PACKAGE_JAR="$PACKAGE_DIR/pt-exapp.jar"
 LAUNCHER_SCRIPT="$SCRIPT_DIR/pt-exapp.py"
 PACKAGE_LAUNCHER="$PACKAGE_DIR/pt-exapp.py"
 PACKAGE_META="$PACKAGE_DIR/PT_APP_META.xml"
+PACKAGE_LIB_DIR="$PACKAGE_DIR/lib"
+PACKAGE_FRAMEWORK_JAR="$PACKAGE_LIB_DIR/PacketTracerJavaFramework.jar"
 ROOT_META="$SCRIPT_DIR/PT_APP_META.xml"
 DEFAULT_FRAMEWORK_JAR="$SCRIPT_DIR/lib/PacketTracerJavaFramework.jar"
 FRAMEWORK_JAR="${PACKET_TRACER_JAVA_FRAMEWORK_JAR:-}"
@@ -37,6 +39,7 @@ fi
 
 mkdir -p "$CLASSES_DIR"
 mkdir -p "$PACKAGE_DIR"
+mkdir -p "$PACKAGE_LIB_DIR"
 rm -rf "$CLASSES_DIR"
 mkdir -p "$CLASSES_DIR"
 rm -f "$PACKAGE_DIR/pt-exapp.py"
@@ -94,9 +97,11 @@ javac -cp "$FRAMEWORK_JAR" -d "$CLASSES_DIR" $JAVA_SOURCES
 jar --create --file "$PACKAGE_JAR" --main-class "$MAIN_CLASS" -C "$CLASSES_DIR" .
 cp "$ROOT_META" "$PACKAGE_META"
 cp "$LAUNCHER_SCRIPT" "$PACKAGE_LAUNCHER"
+cp "$FRAMEWORK_JAR" "$PACKAGE_FRAMEWORK_JAR"
 chmod 755 "$PACKAGE_LAUNCHER"
 
 printf '%s\n' "Compiled classes written to $CLASSES_DIR"
 printf '%s\n' "Packageable PT_APP_META copied to $PACKAGE_META"
 printf '%s\n' "Packageable application JAR written to $PACKAGE_JAR"
 printf '%s\n' "Packageable launcher written to $PACKAGE_LAUNCHER"
+printf '%s\n' "Packageable framework JAR written to $PACKAGE_FRAMEWORK_JAR"

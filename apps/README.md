@@ -22,6 +22,7 @@ If you previously called it `.pts`, note that the artifact produced here is **`p
 - `pt-exapp.py` — executable launched by Packet Tracer from the packaged app
 - `PT_APP_META.xml` — Packet Tracer app metadata
 - `build/package/pt-exapp.jar` — built Java app JAR
+- `build/package/lib/PacketTracerJavaFramework.jar` — packaged framework JAR copied into the app bundle for launch-time reliability
 - `build/package/pt-exapp.pta` — final installable ExApp package after packaging
 
 PT 8.2-specific release artifacts also exist:
@@ -42,7 +43,7 @@ You need:
   - `packettracer-mcp-bridge/apps/lib/PacketTracerJavaFramework.jar`
   - an active Packet Tracer AppImage mount under `/tmp/.mount_*/opt/pt/help/default/ipc/` (Linux fallback)
 
-`pt-exapp.py` resolves the framework JAR using that order and then launches the main class with `java -cp ... packettracer.exapp.PacketTracerPtExApp`.
+`pt-exapp.py` resolves the framework JAR using that order, prefers a package-local `lib/PacketTracerJavaFramework.jar` when present, resolves `java` from `JAVA_HOME` or common absolute paths before falling back to `PATH`, and then launches the main class with `java -cp ... packettracer.exapp.PacketTracerPtExApp`.
 
 For Windows builds, the simplest setup is usually `PACKET_TRACER_JAVA_FRAMEWORK_JAR` or a staged `apps/lib/PacketTracerJavaFramework.jar`; the AppImage mount fallback is Linux-specific.
 
@@ -72,6 +73,7 @@ Successful output leaves:
 
 - compiled classes under `build/classes/`
 - package-ready files under `build/package/`
+- a package-local framework copy under `build/package/lib/PacketTracerJavaFramework.jar`
 
 ## Build the `.pta` package
 
@@ -198,7 +200,7 @@ See the host-side contract and server run steps in:
 
 ## Notes
 
-- The package metadata currently points Packet Tracer at `pt-exapp.py` via `PT_APP_META.xml`.
+- The package metadata currently points Packet Tracer at `pt-exapp.py` via `PT_APP_META.xml`, but the launcher now avoids the previous `PATH`-only assumptions by using an absolute Python shebang, a package-local framework copy, and explicit Java path resolution.
 - The current metadata uses `<LOADING>ON_DEMAND</LOADING>`, so the app must be launched from Packet Tracer before the MCP side can talk to it.
 - `PT_APP_META_82.xml` and `release/pt82/` are PT 8.2 release/compatibility assets. Use them only when you intentionally need a PT 8.2-specific manual packaging path; they are not part of the default `build/package/pt-exapp.pta` workflow.
 - Keep serial-capable router examples aligned with the catalog-backed `HWIC-2T` module shape when docs or samples refer to serial links.

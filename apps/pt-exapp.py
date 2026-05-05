@@ -1,8 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -68,14 +69,49 @@ def resolve_framework_jar(script_dir: Path) -> Path:
     )
 
 
+def resolve_java_executable() -> str:
+    java_home = os.environ.get("JAVA_HOME", "").strip()
+    java_candidates: list[Path] = []
+
+    if java_home:
+        java_home_path = Path(java_home).expanduser()
+        java_candidates.extend(
+            [
+                java_home_path / "bin" / "java",
+                java_home_path / "bin" / "java.exe",
+            ]
+        )
+
+    java_candidates.extend(
+        [
+            Path("/usr/bin/java"),
+            Path("/usr/local/bin/java"),
+            Path("/bin/java"),
+        ]
+    )
+
+    for candidate in java_candidates:
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
+
+    discovered = shutil.which("java")
+    if discovered:
+        return discovered
+
+    raise FileNotFoundError(
+        "Java runtime not found. Install a JDK/JRE, set JAVA_HOME, or make java available at /usr/bin/java."
+    )
+
+
 def main() -> int:
     script_dir = Path(__file__).resolve().parent
     app_jar = resolve_app_jar(script_dir)
     framework_jar = resolve_framework_jar(script_dir)
+    java_executable = resolve_java_executable()
     classpath = os.pathsep.join((str(app_jar), str(framework_jar)))
     os.execvp(
-        "java",
-        ["java", "-cp", classpath, MAIN_CLASS, *sys.argv[1:]],
+        java_executable,
+        [java_executable, "-cp", classpath, MAIN_CLASS, *sys.argv[1:]],
     )
 
 
