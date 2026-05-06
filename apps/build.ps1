@@ -24,8 +24,16 @@ if (-not (Get-Command javac -ErrorAction SilentlyContinue)) {
   throw "javac is required to build this ExApp package. Install a JDK that provides javac."
 }
 
-if (-not (Get-Command jar -ErrorAction SilentlyContinue)) {
-  throw "jar is required to assemble the Java PT-side package artifact. Install a JDK that provides jar."
+$jarCommand = Get-Command jar -ErrorAction SilentlyContinue
+$useJavaJarTool = $false
+if (-not $jarCommand) {
+  # Oracle's javapath shim can expose java/javac but omit jar from PATH.
+  $javaModules = & java --list-modules 2>$null
+  if ($LASTEXITCODE -eq 0 -and ($javaModules | Select-String -Pattern "^jdk\.jartool@")) {
+    $useJavaJarTool = $true
+  } else {
+    throw "jar is required to assemble the Java PT-side package artifact. Install a JDK that provides jar, or ensure java exposes module jdk.jartool."
+  }
 }
 
 if (-not (Test-Path -LiteralPath $rootMeta -PathType Leaf)) {
@@ -76,7 +84,11 @@ if (-not $?) {
   throw "javac compilation failed"
 }
 
-& jar --create --file $packageJar --main-class $mainClass -C $classesDir .
+if ($useJavaJarTool) {
+  & java -m jdk.jartool --create --file $packageJar --main-class $mainClass -C $classesDir .
+} else {
+  & $jarCommand.Source --create --file $packageJar --main-class $mainClass -C $classesDir .
+}
 if (-not $?) {
   throw "jar packaging failed"
 }
